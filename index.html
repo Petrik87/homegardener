@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Gardener</title>
+    <link rel="icon" href="https://emoji.slack-edge.com/T01M0C8L7E9/flower/8c8108317374c3d2.png" type="image/png"> <!-- Favicon -->
+
+    <style>
+        #game-container {
+            width: 1000px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .plant-container {
+            display: inline-block;
+            width: 200px;
+            margin: 20px;
+            text-align: center;
+            border: 1px solid #000;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .plant-display {
+            width: 100%;
+            height: 150px;
+            background-color: #e0f7fa; /* Light blue background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden; /* Ensure emoji does not overflow */
+            position: relative;
+        }
+
+        .plant-display span {
+            font-size: 50px;
+            transition: font-size 0.3s ease;
+        }
+
+        .plant-stats {
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .plant-stats .health {
+            font-weight: bold;
+        }
+
+        .control-buttons {
+            margin-top: 10px;
+        }
+
+        .control-buttons button {
+            margin: 5px;
+        }
+
+        #add-flower-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        #remove-flower-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .health-green {
+            color: green;
+        }
+
+        .health-orange {
+            color: orange;
+        }
+
+        .health-red {
+            color: red;
+        }
+
+        /* Style for dropdown */
+        select {
+            padding: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            position: relative;
+            z-index: 10; /* Ensure it's on top */
+        }
+
+        /* Style for dropdown container */
+        .dropdown-container {
+            position: relative;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <h1>Home Gardener</h1>
+        <div id="plant-container"></div>
+
+        <button id="add-flower-btn">Add Another Plant</button>
+        <button id="remove-flower-btn" disabled>Remove Last Plant</button> <!-- New remove button under Add Plant button -->
+    </div>
+
+    <script>
+        class Plant {
+            constructor(img = '🌼') {
+                this.img = img;
+                this.water = 50;
+                this.fertilizer = 50;
+                this.sunlight = 50;
+                this.health = 50;
+                this.growth = 0;
+            }
+
+            updateStats() {
+                this.health = (this.water + this.fertilizer + this.sunlight) / 3;
+                this.growth += 1; // Faster growth rate
+                if (this.growth > 100) this.growth = 100;
+
+                // Slower reduction of water, fertilizer, and sunlight
+                this.water -= 0.2;
+                this.fertilizer -= 0.1;
+                this.sunlight -= 0.15;
+
+                this.water = Math.max(0, this.water);
+                this.fertilizer = Math.max(0, this.fertilizer);
+                this.sunlight = Math.max(0, this.sunlight);
+
+                // Check if health reaches 0
+                if (this.health <= 0) {
+                    clearInterval(game.gameInterval); // Stop the game loop
+                    alert("GAME OVER: Your plant's health reached 0.");
+                }
+            }
+
+            giveWater() {
+                this.water = Math.min(100, this.water + 10);
+            }
+
+            fertilize() {
+                this.fertilizer = Math.min(100, this.fertilizer + 10);
+            }
+
+            adjustSunlight() {
+                this.sunlight = Math.min(100, this.sunlight + 10);
+            }
+        }
+
+        const game = {
+            plants: [],
+            gameInterval: null,
+            maxPlants: 4,
+            dropdownOpenIndex: -1,
+
+            init() {
+                this.addPlant('🌼');
+                this.setupEventListeners();
+                this.startGameLoop();
+                this.updateDisplay();
+            },
+
+            setupEventListeners() {
+                document.getElementById("add-flower-btn").addEventListener("click", () => {
+                    if (this.plants.length < this.maxPlants) {
+                        const plantImage = '🌼'; // Default to daisy emoji
+                        this.addPlant(plantImage);
+                        this.updateDisplay();
+                    }
+                });
+
+                document.getElementById("remove-flower-btn").addEventListener("click", () => {
+                    if (this.plants.length > 0) {
+                        this.removePlant(this.plants.length - 1); // Remove last plant
+                        this.updateDisplay();
+                    }
+                });
+
+                // Close dropdowns when clicking outside
+                document.addEventListener('mousedown', (e) => {
+                    if (this.dropdownOpenIndex !== -1 && !e.target.closest('.dropdown-container')) {
+                        this.dropdownOpenIndex = -1;
+                        this.resumeGame(); // Resume the game if dropdown closes
+                        this.updateDisplay(); // Update display to reflect changes
+                    }
+                });
+            },
+
+            addPlant(img) {
+                const newPlant = new Plant(img);
+                this.plants.push(newPlant);
+                this.updateButtonsState();
+            },
+
+            removePlant(index) {
+                this.plants.splice(index, 1); // Remove the plant at the given index
+                this.updateButtonsState();
+                this.updateDisplay();
+            },
+
+            updateButtonsState() {
+                const addButton = document.getElementById("add-flower-btn");
+                const removeButton = document.getElementById("remove-flower-btn");
+
+                // Update Add button state
+                if (this.plants.length >= this.maxPlants) {
+                    addButton.disabled = true;
+                    addButton.style.backgroundColor = '#ccc'; // Grey out button
+                } else {
+                    addButton.disabled = false;
+                    addButton.style.backgroundColor = ''; // Restore button color
+                }
+
+                // Update Remove button state
+                if (this.plants.length === 0) {
+                    removeButton.disabled = true;
+                    removeButton.style.backgroundColor = '#ccc'; // Grey out button
+                } else {
+                    removeButton.disabled = false;
+                    removeButton.style.backgroundColor = ''; // Restore button color
+                }
+            },
+
+            startGameLoop() {
+                this.gameInterval = setInterval(() => {
+                    this.plants.forEach(plant => plant.updateStats());
+                    this.updateDisplay();
+                }, 1000);
+            },
+
+            pauseGame() {
+                clearInterval(this.gameInterval); // Stop the game loop when dropdown opens
+            },
+
+            resumeGame() {
+                this.startGameLoop(); // Resume the game loop when dropdown interaction finishes
+            },
+
+            updateDisplay() {
+                const plantContainer = document.getElementById("plant-container");
+                plantContainer.innerHTML = '';
+
+                this.plants.forEach((plant, index) => {
+                    const plantDiv = document.createElement('div');
+                    plantDiv.classList.add('plant-container');
+                    
+                    // Plant display (emoji)
+                    const plantDisplay = document.createElement('div');
+                    plantDisplay.classList.add('plant-display');
+                    const emojiSpan = document.createElement('span');
+                    emojiSpan.style.fontSize = `${Math.min(50 + plant.growth, 100)}px`; // Cap the font size to ensure it fits
+                    emojiSpan.innerHTML = plant.img;
+                    plantDisplay.appendChild(emojiSpan);
+                    
+                    plantDiv.appendChild(plantDisplay);
+
+                    // Plant stats
+                    const plantStats = document.createElement('div');
+                    plantStats.classList.add('plant-stats');
+                    
+                    // Health color logic
+                    let healthClass = '';
+                    if (plant.health <= 25) {
+                        healthClass = 'health-red';
+                    } else if (plant.health <= 50) {
+                        healthClass = 'health-orange';
+                    } else {
+                        healthClass = 'health-green';
+                    }
+                    
+                    plantStats.innerHTML = `
+                        Water: ${plant.water.toFixed(1)}%<br>
+                        Fertilizer: ${plant.fertilizer.toFixed(1)}%<br>
+                        Sunlight: ${plant.sunlight.toFixed(1)}%<br>
+                        <span class="${healthClass} health">Health: ${plant.health.toFixed(1)}%</span><br>
+                        Growth: ${plant.growth.toFixed(1)}%
+                    `;
+                    plantDiv.appendChild(plantStats);
+
+                    // Control buttons
+                    const controlButtons = document.createElement('div');
+                    controlButtons.classList.add('control-buttons');
+                    controlButtons.innerHTML = `
+                        <button onclick="game.plants[${index}].giveWater(); game.updateDisplay();">Water</button>
+                        <button onclick="game.plants[${index}].fertilize(); game.updateDisplay();">Fertilize</button>
+                        <button onclick="game.plants[${index}].adjustSunlight(); game.updateDisplay();">Sunlight</button>
+                    `;
+                    plantDiv.appendChild(controlButtons);
+
+                    // Dropdown to change plant image
+                    const imageSelectContainer = document.createElement('div');
+                    imageSelectContainer.classList.add('dropdown-container');
+
+                    const imageSelect = document.createElement('select');
+                    imageSelect.innerHTML = `
+                        <option value="🌼" ${plant.img === '🌼' ? 'selected' : ''}>Daisy 🌼</option>
+                        <option value="🌸" ${plant.img === '🌸' ? 'selected' : ''}>Cherry Blossom 🌸</option>
+                        <option value="🥕" ${plant.img === '🥕' ? 'selected' : ''}>Carrot 🥕</option>
+                        <option value="🍆" ${plant.img === '🍆' ? 'selected' : ''}>Eggplant 🍆</option>
+                        <option value="🌻" ${plant.img === '🌻' ? 'selected' : ''}>Sunflower 🌻</option>
+                        <option value="🍅" ${plant.img === '🍅' ? 'selected' : ''}>Tomato 🍅</option>
+                        <option value="🌹" ${plant.img === '🌹' ? 'selected' : ''}>Rose 🌹</option>
+                    `;
+
+                    imageSelect.addEventListener('focus', () => {
+                        this.dropdownOpenIndex = index; // Keep track of which dropdown is open
+                        this.pauseGame(); // Pause the game loop when dropdown is open
+                    });
+
+                    imageSelect.addEventListener('change', (e) => {
+                        plant.img = e.target.value;
+                        this.resumeGame(); // Resume game once a selection is made
+                        this.updateDisplay();
+                    });
+
+                    imageSelectContainer.appendChild(imageSelect);
+                    plantDiv.appendChild(imageSelectContainer);
+
+                    plantContainer.appendChild(plantDiv);
+                });
+            }
+        };
+
+        window.addEventListener('load', () => {
+            game.init();
+        });
+    </script>
+</body>
+</html>
